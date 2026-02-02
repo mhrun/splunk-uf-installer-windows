@@ -1,7 +1,3 @@
-# APK-Installer.ps1
-# SYSMON: FIXED 15.x UPGRADE (REBOOT + CLEAN UNINSTALL)
-# SPLUNK: INSTALL + UNINSTALL + UPGRADE
-# PowerShell 2.0+ Compatible (Win7+)
 #Requires -RunAsAdministrator
 
 # === ROBUST SCRIPT FOLDER DETECTION (WORKS IN .EXE TOO!) ===
@@ -176,97 +172,11 @@ function Upgrade-Splunk {
 
 function Install-Splunk {
     Clear-Host
-    Write-Host "=== INSTALL SPLUNK UNIVERSAL FORWARDER ===" -ForegroundColor Green
 
-    # --- Deployment Server ---
-    $ds = Read-Host "Deployment Server (host:8089) or press Enter to skip"
-
-    # --- Strong password loop ---
-    do {
-        $pass1 = Read-Host " Set strong admin password" -AsSecureString
-        $pass2 = Read-Host " Confirm password" -AsSecureString
-
-        $p1 = [Runtime.InteropServices.Marshal]::PtrToStringAuto(`
-                [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pass1))
-        $p2 = [Runtime.InteropServices.Marshal]::PtrToStringAuto(`
-                [Runtime.InteropServices.Marshal]::SecureStringToBSTR($pass2))
-
-        if ($p1 -ne $p2) { Write-Host "Passwords do not match!" -ForegroundColor Red; continue }
-        if ($p1.Length -lt 8 -or $p1 -notmatch "[A-Z]" -or $p1 -notmatch "[a-z]" -or
-            $p1 -notmatch "[0-9]" -or $p1 -notmatch "[^A-Za-z0-9]") {
-            Write-Host "Too weak! Need 8+ chars, upper, lower, number, special char." -ForegroundColor Red
-        } else {
-            Write-Host "Password accepted!" -ForegroundColor Green
-            break
-        }
-    } while ($true)
-
-    # --- Log file ---
-    $log = "$LogDir\SplunkUF_Install_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-
-    # --- MSI arguments (NO SPLUNK_ADMIN_PASSWORD — it is ignored since 8.2+) ---
-    $msiArgs = "/i `"$SplunkMSI`" /quiet /norestart AGREETOLICENSE=Yes LAUNCHSPLUNK=0 /l*v `"$log`""
-    if ($ds) { $msiArgs += " DEPLOYMENT_SERVER=`"$ds`"" }
-
-    Write-Host "`nInstalling Splunk Universal Forwarder..." -ForegroundColor Cyan
-    Write-Host "Log: $log" -ForegroundColor Gray
-    Write-Host "Progress: [          ]" -NoNewline
-
-    # Start real install
-    $proc = Start-Process msiexec.exe -ArgumentList $msiArgs -PassThru -Wait
-
-    # Simple progress bar (fake, just looks nice)
-    for ($i = 1; $i -le 10; $i++) {
-        Start-Sleep -Milliseconds 300
-        Write-Host "`rProgress: [" -NoNewline
-        Write-Host ("#" * $i + " " * (10-$i)) -ForegroundColor Green -NoNewline
-        Write-Host "]" -NoNewline
-    }
-
-    # --- Check result ---
-    if ($proc.ExitCode -in 0, 3010) {
-        Write-Host "`rProgress: [##########] Installed!       " -ForegroundColor Green
-
-        # === CRITICAL FIX: Force our password BEFORE first splunkd start ===
-        # 1. Disable service auto-start
-        sc.exe config SplunkForwarder start= disabled | Out-Null
-
-        # 2. Remove any leftover credentials from previous installs
-        $etc = "C:\Program Files\SplunkUniversalForwarder\etc"
-        Remove-Item "$etc\passwd" -Force -ErrorAction SilentlyContinue
-        Remove-Item "$etc\system\local\user-seed.conf" -Force -ErrorAction SilentlyContinue
-        Remove-Item "$etc\system\local\authentication.conf" -Force -ErrorAction SilentlyContinue
-
-        # 3. Create user-seed.conf with YOUR password
-        $seedDir = "$etc\system\local"
-        if (-not (Test-Path $seedDir)) { New-Item -Path $seedDir -ItemType Directory -Force | Out-Null }
-        "[user_info]`nUSERNAME = admin`nPASSWORD = $p1" | Out-File "$seedDir\user-seed.conf" -Encoding ASCII -Force
-
-        # 4. Re-enable and start service
-        sc.exe config SplunkForwarder start= auto | Out-Null
-        Start-Service SplunkForwarder
-
-        Write-Host "Admin password successfully set (the one you just typed)!" -ForegroundColor Green
-        Write-Host "Web UI http://localhost:8089   |   user: admin" -ForegroundColor Yellow
-
-        if ($proc.ExitCode -eq 3010) {
-            Write-Host "`nReboot required (exit code 3010)." -ForegroundColor Yellow
-            if ((Read-Host "Reboot now? (y/n)") -match '^[Yy]') {
-                Write-Host "Rebooting in 10 seconds..." -ForegroundColor Cyan
-                Start-Sleep 10; Restart-Computer -Force
-            }
-        }
-    }
-    elseif ($proc.ExitCode -eq 1603) {
-        Write-Host "Splunk Universal Forwarder is already installed." -ForegroundColor Yellow
-    }
-    else {
-        Write-Host "`nInstallation failed! ExitCode: $($proc.ExitCode)" -ForegroundColor Red
-        Write-Host "Check log: $log" -ForegroundColor Red
-    }
-
-    Pause-Msg
-}
+    # Installation
+    msiexec.exe -ArgumentList $msiArgs -PassThru -Wait
+    Start-Service SplunkForwarder
+ }
 
 function Install-Sysmon {
     Clear-Host
