@@ -1,6 +1,6 @@
-# APK Installer
+# Splunk universal forwarder installer in windows
 
-**APK Installer** is a PowerShell-based tool designed to simplify the installation, upgrade, and uninstallation of **Sysmon** and **UF** on Windows systems. It provides an automated and user-friendly approach for managing these security and monitoring tools.
+**Splunk universal forwarder installer in windows** is a PowerShell-based tool designed to simplify the installation, upgrade, and uninstallation of **Sysmon** and **UF** on Windows systems. It provides an automated and user-friendly approach for managing these security and monitoring tools.
 
 ---
 
@@ -26,6 +26,6 @@
 1. Clone or download the repository:
 
 ```powershell
-git clone https://github.com/yourusername/apk-installer.git
-cd apk-installer
-./apk-installer.exe
+git clone https://github.com/yourusername/splunk-uf-installer-windows.git
+cd splunk-uf-installer-windows
+./splunk-uf-installer-windows.exe
